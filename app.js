@@ -1,4 +1,4 @@
-// あつ森チェックリスト（オフラインPWA） v4.1
+// あつまれどうぶつの森 チェックツール（オフラインPWA） v4.1
 // 修正点：
 // - 生き物が表示されない問題に対応（fetch失敗時は data-inline.js を利用）
 // - 書き出し/読み込み（JSON）を削除
@@ -9,7 +9,7 @@ const $ = (sel) => document.querySelector(sel);
 const STORAGE_KEY = "acnh_checklist_v4.1";
 
 const defaultState = {
-  meta: { version: "4.1.13" },
+  meta: { version: "4.1.15" },
   settings: {
     hemisphere: "north", // north | south
     nowMode: "auto",     // auto | manual
@@ -78,7 +78,7 @@ function migrateIfNeeded(obj){
 
   // version migration (keep marks)
   const prevVer = (merged.meta && merged.meta.version) ? String(merged.meta.version) : "";
-  const curVer  = "4.1.13";
+  const curVer  = "4.1.15";
   merged.meta = { ...(merged.meta || {}), version: curVer };
 
   if (prevVer !== curVer) {
@@ -252,9 +252,15 @@ function renderList(kind, items){
 
   // Settings UI values
   const dt = getNowDateTime();
-  const whenAuto = `${pad2(dt.getMonth()+1)}/${pad2(dt.getDate())} ${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
-  const whenMonth = `${pad2(dt.getMonth()+1)}月`;
-  const whenManual = s.manualAnytime ? whenMonth : `${whenMonth} ${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+  const m0 = dt.getMonth()+1;
+  const d0 = dt.getDate();
+  const h0 = dt.getHours();
+  const min0 = dt.getMinutes();
+  // 表示用（先頭ゼロなし）： 1/31 2:22
+  const whenAuto = `${m0}/${d0} ${h0}:${pad2(min0)}`;
+  // 手動は「月＋時間（分なし）」なので、日付は固定で 1日、分は 00 として表示
+  const mMan = (s.manualMonth||0) + 1;
+  const whenManual = s.manualAnytime ? `${mMan}/1` : `${mMan}/1 ${s.manualHour||0}:00`;
   const hemiLabel = (s.hemisphere==="north") ? "北半球" : "南半球";
 
   const maxDay = daysInMonth(s.manualMonth);
@@ -292,13 +298,13 @@ function renderList(kind, items){
         <div class="fitem">
           <div class="label">Nowモード</div>
           <select id="${kind}-set-nowMode">
-            <option value="auto" ${s.nowMode==="auto"?"selected":""}>自動（端末時刻）</option>
+            <option value="auto" ${s.nowMode==="auto"?"selected":""}>自動</option>
             <option value="manual" ${s.nowMode==="manual"?"selected":""}>手動</option>
           </select>
         </div>
 
         <div class="fitem">
-          <div class="row manualRow">
+          <div class="row manualRow" style="display:${s.nowMode==="manual"?"flex":"none"};">
             <div class="manualStack">
               <div class="inlineLabel">月（手動）</div>
               <select id="${kind}-set-month" ${manualDisabled?"disabled":""}>${monthOpts}</select>
@@ -313,7 +319,7 @@ function renderList(kind, items){
 
         <div class="fitem spanAll">
           <div class="row checksRow">
-            <label class="row"><input type="checkbox" id="${kind}-set-showNowOnly" ${s.showNowOnly?"checked":""}/> <span class="label">今狙えるのみ</span></label>
+            <label class="row"><input type="checkbox" id="${kind}-set-showNowOnly" ${s.showNowOnly?"checked":""}/> <span class="label">今狙える（Only）</span></label>
             <label class="row"><input type="checkbox" id="${kind}-set-sortNowFirst" ${s.sortNowFirst?"checked":""}/> <span class="label">今狙える（昇順）</span></label>
             <label class="row"><input type="checkbox" id="${kind}-checkAll" ${allChecked?"checked":""}/> <span class="label">すべてチェック（表示中）</span></label>
           </div>
@@ -334,7 +340,7 @@ function renderList(kind, items){
         <div class="fitem">
           <div class="label">場所</div>
           <select id="${kind}-f-place">
-            ${placeOptions.map(p=> `<option value="${escapeHtml(p)}" ${String(f.place)===String(p)?"selected":""}>${p===""?"（指定なし）":escapeHtml(p)}</option>`).join("")}
+            ${placeOptions.map(p=> `<option value="${escapeHtml(p)}" ${String(f.place)===String(p)?"selected":""}>${p===""?"指定なし":escapeHtml(p)}</option>`).join("")}
           </select>
         </div>
         ` : `` }
@@ -375,18 +381,18 @@ function renderList(kind, items){
 
     html += `
       <tr class="">
-        <td><input type="checkbox" data-act="caught" data-id="${it.id}" ${mk.caught?"checked":""}></td>
-        <td>${it.no ?? ""}</td>
-        <td>
+        <td data-label="済"><input type="checkbox" data-act="caught" data-id="${it.id}" ${mk.caught?"checked":""}></td>
+        <td data-label="No">${it.no ?? ""}</td>
+        <td class="td-name" data-label="名前">
           <div class="nameRow">
             <span class="nameText" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</span>
             ${now ? `<span class="badge now">いま狙える</span>` : ``}
           </div>
         </td>
-        <td>${it.price ?? ""}</td>
-        <td>${escapeHtml(it.place || "")}</td>
-        <td>${monthsStr ? `<span class="badge">${escapeHtml(monthsStr)}</span>` : ""}</td>
-        <td>${timeLabel ? `<span class="badge">${escapeHtml(timeLabel)}</span>` : ""}</td>
+        <td data-label="売値">${it.price ?? ""}</td>
+        <td data-label="場所">${escapeHtml(it.place || "")}</td>
+        <td data-label="出現月">${monthsStr ? `<span class="badge">${escapeHtml(monthsStr)}</span>` : ""}</td>
+        <td data-label="出現時間">${timeLabel ? `<span class="badge">${escapeHtml(timeLabel)}</span>` : ""}</td>
       </tr>
     `;
   }
@@ -603,3 +609,59 @@ document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", (
   saveState();
   setView(state.currentView);
 })();
+
+
+function initCompactListInteractions(){
+  const root = document.getElementById("app");
+  if(!root) return;
+
+  root.addEventListener("click", (e)=>{
+    const btn = e.target.closest && e.target.closest("button.cNameBtn");
+    if(btn){
+      const row = btn.closest(".cRow");
+      if(!row) return;
+      const detail = row.querySelector(".cDetail");
+      if(!detail) return;
+      detail.hidden = !detail.hidden;
+      return;
+    }
+  });
+
+  let lpTimer = null;
+  let lpTarget = null;
+
+  const start = (target)=>{
+    clearTimeout(lpTimer);
+    lpTarget = target;
+    lpTimer = setTimeout(()=>{
+      const row = lpTarget && lpTarget.closest ? lpTarget.closest(".cRow") : null;
+      if(!row) return;
+      const detail = row.querySelector(".cDetail");
+      if(detail) detail.hidden = !detail.hidden;
+    }, 450);
+  };
+  const cancel = ()=>{
+    clearTimeout(lpTimer);
+    lpTimer = null;
+    lpTarget = null;
+  };
+
+  root.addEventListener("touchstart", (e)=>{
+    const row = e.target.closest && e.target.closest(".cRow");
+    if(!row) return;
+    if(e.target.closest("label.cChk")) return;
+    start(e.target);
+  }, {passive:true});
+  root.addEventListener("touchend", cancel, {passive:true});
+  root.addEventListener("touchmove", cancel, {passive:true});
+  root.addEventListener("touchcancel", cancel, {passive:true});
+
+  root.addEventListener("contextmenu", (e)=>{
+    const row = e.target.closest && e.target.closest(".cRow");
+    if(!row) return;
+    e.preventDefault();
+    const detail = row.querySelector(".cDetail");
+    if(detail) detail.hidden = !detail.hidden;
+  });
+}
+

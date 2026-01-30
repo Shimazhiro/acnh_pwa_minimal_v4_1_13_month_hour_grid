@@ -1,6 +1,6 @@
 {
-  "name": "あつ森チェックリスト（オフライン）",
-  "short_name": "あつ森",
+  "name":"あつまれどうぶつの森 チェックツール",
+  "short_name":"あつ森チェック",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f6f7fb",
